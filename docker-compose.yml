@@ -58,6 +58,15 @@ services:
             - "traefik.http.routers.deluge.rule=Host(`deluge.${TRAEFIK_DOMAIN}`)"
             - "traefik.http.routers.deluge.middlewares=common-auth@file"
 
+    cyberchef:
+        image: mpepping/cyberchef
+        container_name: cyberchef
+        restart: always
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.services.cyberchef.loadbalancer.server.port=8000"
+            - "traefik.http.routers.cyberchef.rule=Host(`crypto.${TRAEFIK_DOMAIN}`)"
+
     plex:
         image: linuxserver/plex
         container_name: plex
