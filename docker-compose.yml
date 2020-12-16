@@ -25,6 +25,22 @@ services:
             - "traefik.http.routers.traefik.service=api@internal"
             - "traefik.http.routers.traefik.middlewares=common-auth@file"
 
+    flaresolverr:
+        # DockerHub mirror flaresolverr/flaresolverr:latest
+        image: zhuxiaole1992/flaresolverr
+        container_name: flaresolverr
+        environment:
+          # Used to change the verbosity of the logging
+          - LOG_LEVEL=info
+          # Enables hcaptcha-solver => https://github.com/JimmyLaurent/hcaptcha-solver
+          #- CAPTCHA_SOLVER=hcaptcha-solver
+          # Enables CaptchaHarvester => https://github.com/NoahCardoza/CaptchaHarvester
+          #- CAPTCHA_SOLVER=harvester
+          #- HARVESTER_ENDPOINT=https://127.0.0.1:5000/token
+        ports:
+          - 8191:8191
+        restart: unless-stopped 
+
     deluge:
         image: linuxserver/deluge
         container_name: deluge
@@ -61,6 +77,7 @@ services:
             - PUID=${PUID}
             - TZ=${TZ}
             - VERSION=latest
+            - PLEX_CLAIM=claim-oBFWiVdNDz5SLckbE-nU
         labels:
             - "traefik.enable=true"
             - "traefik.http.services.plex-seedbox.loadbalancer.server.port=32400"
@@ -199,6 +216,40 @@ services:
             - "traefik.http.routers.tdarr.rule=Host(`tdarr.${TRAEFIK_DOMAIN}`)"
             - "traefik.http.routers.tdarr.middlewares=common-auth@file"
 
+    wordpress_aituglo:
+        image: wordpress
+        user: ${PUID}:${PGID}
+        links:
+            - mariadb-aituglo:mysql
+        environment:
+            - WORDPRESS_DB_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - PUID=${PUID}
+            - PGID=${PGID}
+            - TZ=${TZ}
+        volumes:
+            - configwordpressaituglo:/var/www/html
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.wordpress_aituglo.rule=Host(`aituglo.com`)"
+        
+    mariadb-aituglo:
+        image: mariadb
+        environment:
+            - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - MYSQL_DATABASE=wordpress
+        volumes:
+            - mariadbaituglo:/var/lib/mysql
+        labels:
+            - "traefik.enable=false"
+    
+    assets:
+        image: fusengine/apaxy
+        volumes:
+            - configassets:/app/web
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.assets.rule=Host(`assets.aituglo.xyz`)"
+
     nextcloud-db:
         image: mariadb:10
         container_name: nextcloud-db
@@ -230,6 +281,7 @@ services:
             - confignextcloud:/config
             - nextclouddata:/data
             - torrents:/torrents
+            - configassets:/assets
             - config:/seedbox-config
         labels:
             - "traefik.enable=true"
@@ -316,6 +368,10 @@ volumes:
         driver: local-persist
         driver_opts:
             mountpoint: /data/config/radarr
+    configassets:
+        driver: local-persist
+        driver_opts:
+            mountpoint: /data/assets
     configbazarr:
         driver: local-persist
         driver_opts:
@@ -356,6 +412,14 @@ volumes:
         driver: local-persist
         driver_opts:
             mountpoint: /data/config/nextcloud-data
+    configwordpressaituglo:
+        driver: local-persist
+        driver_opts:
+            mountpoint: /data/config/wordpress-aituglo
+    mariadbaituglo:
+        driver: local-persist
+        driver_opts:
+            mountpoint: /data/wordpress-aituglo-db
     torrents:
         driver: local-persist
         driver_opts:
